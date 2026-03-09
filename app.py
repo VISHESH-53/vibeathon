@@ -49,12 +49,12 @@ if "code" in params:
 
         original, clicks, limit, active = row
 
-        # Link disabled
+        # Disabled link
         if active == 0:
-            st.error("❌ This link is currently disabled.")
+            st.error("❌ This link is disabled.")
             st.stop()
 
-        # Link expired
+        # Expired link
         if limit != 0 and clicks >= limit:
             st.error("⛔ This link has expired.")
             st.stop()
@@ -101,11 +101,11 @@ if st.button("Create Short Link"):
 
         short = generate_short()
 
-        created = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        created_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         c.execute(
             "INSERT INTO links VALUES (?,?,?,?,?,?,?)",
-            (short, url, 0, click_limit, 1, created, None)
+            (short, url, 0, click_limit, 1, created_time, None)
         )
 
         conn.commit()
@@ -140,13 +140,13 @@ if rows:
     for short, original, clicks, limit, active, created, last_access in rows:
 
         st.write("---")
-        st.write("Short Code:", short)
 
+        st.markdown(f"### 🔗 {short}")
         st.markdown(f"Short URL: [?code={short}](?code={short})")
 
         # ---------- EDIT URL ----------
         new_url = st.text_input(
-            f"Edit Destination URL ({short})",
+            "Edit Destination URL",
             value=original,
             key=f"url_{short}"
         )
@@ -163,18 +163,18 @@ if rows:
 
             conn.commit()
 
-            st.success("Destination URL updated.")
+            st.success("URL updated successfully")
 
-        # ---------- ENABLE / DISABLE ----------
-        status = st.checkbox(
-            "Enable Link",
+        # ---------- TOGGLE ENABLE / DISABLE ----------
+        toggle_status = st.toggle(
+            "Enable / Disable Link",
             value=bool(active),
             key=f"toggle_{short}"
         )
 
         c.execute(
             "UPDATE links SET active=? WHERE short=?",
-            (int(status), short)
+            (int(toggle_status), short)
         )
 
         conn.commit()
