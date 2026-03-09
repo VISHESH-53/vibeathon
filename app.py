@@ -29,22 +29,20 @@ if "code" in params:
 
     code = params["code"]
 
-    c.execute("SELECT original, clicks FROM links WHERE short=?", (code,))
+    c.execute("SELECT original FROM links WHERE short=?", (code,))
     row = c.fetchone()
 
     if row:
-        original, clicks = row
+        original = row[0]
 
-        # Update click count
+        # increase click count
         c.execute(
             "UPDATE links SET clicks = clicks + 1 WHERE short=?",
             (code,)
         )
         conn.commit()
 
-        st.success("Redirecting to original URL...")
-
-        # Redirect automatically
+        # redirect automatically
         st.markdown(
             f'<meta http-equiv="refresh" content="0;url={original}">',
             unsafe_allow_html=True
@@ -65,6 +63,7 @@ if st.button("Shorten URL"):
 
     else:
 
+        # auto add https if missing
         if not url.startswith("http"):
             url = "https://" + url
 
@@ -76,10 +75,12 @@ if st.button("Shorten URL"):
         )
         conn.commit()
 
-        short_link = f"http://localhost:8501/?code={short}"
+        short_link = f"?code={short}"
 
         st.success("Short URL Created!")
-        st.write("Short URL:", short_link)
+
+        st.markdown(f"### Short Link")
+        st.markdown(f"[Open Short URL]({short_link})")
 
 
 # ---------- Dashboard ----------
@@ -91,6 +92,6 @@ data = c.fetchall()
 for short, original, clicks in data:
 
     st.write("Original URL:", original)
-    st.write("Short URL:", f"http://localhost:8501/?code={short}")
+    st.markdown(f"Short URL: [?code={short}](?code={short})")
     st.write("Total Clicks:", clicks)
     st.write("---")
