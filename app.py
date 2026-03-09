@@ -37,27 +37,36 @@ if "code" in params:
 
     code = params["code"]
 
-    c.execute("SELECT original, clicks, click_limit, active FROM links WHERE short=?", (code,))
+    c.execute(
+        "SELECT original, clicks, click_limit, active FROM links WHERE short=?",
+        (code,)
+    )
+
     row = c.fetchone()
 
     if row:
 
         original, clicks, limit, active = row
 
-        if not active:
-            st.error("❌ This link is disabled.")
+        # Disabled link
+        if active == 0:
+            st.error("❌ This link is currently disabled.")
             st.stop()
 
+        # Expired link
         if limit != 0 and clicks >= limit:
-            st.error("⛔ This link has expired (click limit reached).")
+            st.error("⛔ This link has expired.")
             st.stop()
 
+        # Update analytics
         c.execute(
             "UPDATE links SET clicks = clicks + 1, last_accessed=? WHERE short=?",
             (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), code)
         )
+
         conn.commit()
 
+        # Redirect
         st.markdown(
             f'<meta http-equiv="refresh" content="0;url={original}">',
             unsafe_allow_html=True
@@ -69,13 +78,10 @@ if "code" in params:
 # ---------- UI ----------
 st.title("🔗 Link Management Platform")
 
-st.write("Create and manage shortened links with analytics and controls.")
-
-# ---------- CREATE LINK ----------
-url = st.text_input("Enter Destination URL")
+url = st.text_input("Destination URL")
 
 click_limit = st.number_input(
-    "Optional Click Limit (0 = unlimited)",
+    "Click Limit (0 = unlimited)",
     min_value=0,
     step=1
 )
@@ -83,7 +89,7 @@ click_limit = st.number_input(
 if st.button("Create Short Link"):
 
     if url.strip() == "":
-        st.error("Please enter a valid URL")
+        st.error("Enter a valid URL")
 
     else:
 
@@ -92,20 +98,18 @@ if st.button("Create Short Link"):
 
         short = generate_short()
 
-        created = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        created_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         c.execute(
             "INSERT INTO links VALUES (?,?,?,?,?,?,?)",
-            (short, url, 0, click_limit, 1, created, None)
+            (short, url, 0, click_limit, 1, created_time, None)
         )
 
         conn.commit()
 
-        short_link = f"?code={short}"
+        st.success("Short link created!")
 
-        st.success("Short link created")
-
-        st.markdown(f"[Open Short URL]({short_link})")
+        st.markdown(f"[Open Short Link](?code={short})")
 
 
 # ---------- DASHBOARD ----------
@@ -133,11 +137,11 @@ if rows:
     for short, original, clicks, limit, active, created, last_access in rows:
 
         st.write("---")
-        st.write("Short:", short)
+        st.write("Short Code:", short)
 
         st.markdown(f"Short URL: [?code={short}](?code={short})")
 
-        # EDIT URL
+        # ---------- EDIT URL ----------
         new_url = st.text_input(
             f"Edit URL {short}",
             value=original,
@@ -155,7 +159,7 @@ if rows:
 
             st.success("URL updated")
 
-        # ENABLE / DISABLE
+        # ---------- ENABLE / DISABLE ----------
         status = st.checkbox(
             "Active",
             value=bool(active),
