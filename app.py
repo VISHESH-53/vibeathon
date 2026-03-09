@@ -22,6 +22,7 @@ created_at TEXT,
 last_accessed TEXT
 )
 """)
+
 conn.commit()
 
 
@@ -48,12 +49,12 @@ if "code" in params:
 
         original, clicks, limit, active = row
 
-        # Disabled link
+        # Link disabled
         if active == 0:
             st.error("❌ This link is currently disabled.")
             st.stop()
 
-        # Expired link
+        # Link expired
         if limit != 0 and clicks >= limit:
             st.error("⛔ This link has expired.")
             st.stop()
@@ -78,7 +79,9 @@ if "code" in params:
 # ---------- UI ----------
 st.title("🔗 Link Management Platform")
 
-url = st.text_input("Destination URL")
+st.write("Create and manage shortened links with analytics and controls.")
+
+url = st.text_input("Enter Destination URL")
 
 click_limit = st.number_input(
     "Click Limit (0 = unlimited)",
@@ -98,11 +101,11 @@ if st.button("Create Short Link"):
 
         short = generate_short()
 
-        created_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        created = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         c.execute(
             "INSERT INTO links VALUES (?,?,?,?,?,?,?)",
-            (short, url, 0, click_limit, 1, created_time, None)
+            (short, url, 0, click_limit, 1, created, None)
         )
 
         conn.commit()
@@ -121,7 +124,7 @@ rows = c.fetchall()
 if rows:
 
     df = pd.DataFrame(rows, columns=[
-        "Short",
+        "Short Code",
         "Original URL",
         "Clicks",
         "Click Limit",
@@ -143,12 +146,15 @@ if rows:
 
         # ---------- EDIT URL ----------
         new_url = st.text_input(
-            f"Edit URL {short}",
+            f"Edit Destination URL ({short})",
             value=original,
             key=f"url_{short}"
         )
 
         if st.button("Update URL", key=f"update_{short}"):
+
+            if not new_url.startswith("http"):
+                new_url = "https://" + new_url
 
             c.execute(
                 "UPDATE links SET original=? WHERE short=?",
@@ -157,13 +163,13 @@ if rows:
 
             conn.commit()
 
-            st.success("URL updated")
+            st.success("Destination URL updated.")
 
         # ---------- ENABLE / DISABLE ----------
         status = st.checkbox(
-            "Active",
+            "Enable Link",
             value=bool(active),
-            key=f"active_{short}"
+            key=f"toggle_{short}"
         )
 
         c.execute(
@@ -174,8 +180,8 @@ if rows:
         conn.commit()
 
         st.write("Clicks:", clicks)
-        st.write("Limit:", limit)
-        st.write("Created:", created)
+        st.write("Click Limit:", limit)
+        st.write("Created At:", created)
         st.write("Last Accessed:", last_access)
 
 else:
